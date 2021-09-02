@@ -1,0 +1,474 @@
+#include<iostream>
+#include<stdlib.h>
+#include<time.h>
+#include<vector>
+#include<windows.h>
+#include<iomanip>
+#include<iterator>
+using namespace std;
+
+
+
+//圣遗物副词条中文名表,此表与HR_Ancillary_list一一对应，由其行标调用
+const string ArrHRName[10] =
+{ 
+"暴击率",			//冠
+"暴击伤害",			//冠
+"防御力百分比",		//冠，杯，沙1
+"防御力固定值",		
+"攻击力百分比",		//冠，杯，沙0
+"攻击力固定值",							//羽毛
+"生命值百分比",		//冠，杯，沙2
+"生命值固定值",							//花
+"元素充能效率",		//沙3
+"元素精通"			//冠，杯，沙4
+};
+const string  ArrHRNameMain[5][11] =
+{
+	{"生命值"},
+
+	{"攻击力"},
+
+	{"攻击力百分比",		//
+	"防御力百分比",		//
+	"生命值百分比",		//
+	"元素充能效率",		//
+	"元素精通"},
+
+	{
+	"攻击力百分比",		//
+	"防御力百分比",		//
+	"生命值百分比",	//
+	"元素精通",
+	"物理伤害加成",
+	"火元素伤害加成",
+	"冰元素伤害加成",
+	"水元素伤害加成",
+	"岩元素伤害加成",
+	"风元素伤害加成",
+	"雷元素伤害加成",
+	//"草元素伤害加成"
+	},
+	{
+	"攻击力百分比",		//
+	"防御力百分比",		//
+	"生命值百分比",		//
+	"暴击率",			//
+	"暴击伤害",			//
+	"元素精通"			//
+	}
+};
+
+//主词条权重表
+
+int ArrHRNameMain_weight3[5] = { 1333,1333,1334,500,500 };
+int ArrHRNameMain_weight4[11] = { 2125,2125,2000,250,500,500,500,500,500,500,500 };
+int ArrHRNameMain_weight5[7] = { 22,22,22,10,4,10,10 };
+
+//各部位主词条权重总量
+const int ArrHRNameMain_weight_total[5] =
+{ 1,1,5000,10000,100 };
+
+//副词条档位权重表
+ int ArrHRNameAncillary_BeginWeight[4] = { 7,8,9,10 };
+//主词条生成器
+const string ArrHRNamePosition[5] =
+{
+"生之花",
+"死之羽",
+"时之沙",
+"空之杯",
+"理之冠",
+};
+
+//主副词条对照容器(主词条表下标->副词条表下标)(花,羽,沙，杯，冠）
+const vector<vector<int> >ArrHRNameMA = 
+{ 
+	{7},
+	{5},
+	{ 4,2,6,8,9 },
+	{4,2,6,9},
+	{5,2,6,0,1,9},
+};
+
+//判断主副词条是否冲突，是则修改副词条产生池
+int HR_MainName_Ancillary_judge(double arr[4],const vector<vector<int>> MAcontrast)
+//第一个参数是主词条名数组，第二个是主副词条对照表
+{
+	int k = 233;
+	int t = ((int)arr[1]-1);//位置下标号得到对照表容器的行标
+	int p = (int)arr[2];//主词条名下标号
+	//cout << p << endl;
+	if (MAcontrast[t].size() >=( p + 1))
+	{
+		k = MAcontrast[t][p];
+	}
+	return k;//冲突这里将返回233，不冲突将返回对应副词条的下标
+}
+
+//圣遗物副词条数据总表
+const double HR_Ancillary_list[10][4] =
+{
+	{ 2.72 , 3.11 , 3.50  , 3.89 },		//"HitRate"					序号0，需要%
+	{ 5.44 , 6.22 , 6.99  , 7.77 },		//"HitDamage",				序号1，需要%
+	{ 5.1 , 5.83 , 6.56  , 7.29 },		//"DefenceRate"				序号2，需要%
+	{ 16.20 , 18.52 , 20.83 , 23.15 },	//"DefenceNum",
+	{ 4.08 ,4.66 ,5.25 ,5.83 },			//"AttackRate",				序号4，需要%
+	{ 13.62 , 15.56 , 17.51 ,19.45 },	//"AttackNum",
+	{ 4.08 , 4.66 , 5.25 , 5.83 },		//"HpRate",					序号6，需要%
+	{ 209.13 , 239 , 268.88 , 298.75 },	//"HpNum",
+	{ 4.53 , 5.18 , 5.83 , 6.48 },		//"ElementChargeRate",		序号8，需要%
+	{ 16.32 , 18.65 , 20.98 , 23.31 },	//"ElementGrasp"
+};
+
+//副词条权重表  权重总值1100
+//int ArrHR_Ancillary_Product_Weight[10] =
+//{75,75,100,150,100,150,100,150,100,100};
+
+//词条百分号后缀对照表
+const int HR_nameSuffix[6] = { 0,1,2,4,6,8 };
+
+//通用随机数生成器（1~所给参数)
+int HR_rand(int k)
+{
+
+	/*srand((unsigned)time(NULL));
+	int num = rand() % k+1;
+	return num;*/
+		LARGE_INTEGER seed;
+		QueryPerformanceFrequency(&seed);
+		QueryPerformanceCounter(&seed);
+		srand(seed.QuadPart);
+
+		return rand()%k+1;
+}
+//通用概率器        
+//参数:总权重值   小权重数组   数组大小  返回值：小权重数组的下标
+int HR_probability(int Weight, int arr_weight[],int len)
+{
+	int temp=HR_rand(Weight);
+	//cout <<"temp=" << temp << endl;
+	int sum1 = 0;
+	int sum2 = 0;
+	int ret = 100;
+
+	for (int i = 0; i <=len; i++)//结果中必定避免了数组越界
+	{
+		sum2 =sum2+ arr_weight[i];
+		//cout << "sum2=" << sum2 << endl;
+		if (temp <= sum2 && temp > sum1)
+		{
+			if (i == len)
+				i = i - 1;//小学一条线段画几个点分几段时,段数要减去一  2333
+			//cout << "i=" <<i<< endl;
+			ret = i;
+			break;
+		}
+		if (i > 0)
+		{
+			sum1 =sum1+ arr_weight[i - 1];
+			//cout << "sum1=" << sum1 << endl;
+		}
+	}
+
+	if (ret == 100)
+	{
+		cout<< "error!" << endl;//测试用
+	}
+	return ret;
+}
+
+int HR_A_Suffix_Dot_judge(int n)//检索词条的名字是否满足输出百分号条件,满足则输出%，同时可以判断保留的位数
+{
+	int j = 0;
+	for (int k = 0; k <= 5; k++)
+	{
+		if (HR_nameSuffix[k] == n)
+		{
+			j = 1;
+			break;
+		}
+	}
+	if (j == 1)
+		return 1;
+	else
+		return 0;
+}
+//圣遗物打印函数
+void HR_Print(const double arrM[4],const double arrA[4][2],int m,int n)
+{
+	int hrM_p = (int)arrM[1]-1;
+	int hrM_name =(int) arrM[2];
+
+	int temp = 0;
+	int k = 0;
+	if (arrA[3][1] == 0)//判断第四个词条是否为空
+	{
+
+		k = 2;//三词条的
+	}
+	else
+		k = 3;//四词条的
+	cout << ArrHRNamePosition[hrM_p] << "\t" << ArrHRNameMain[hrM_p][hrM_name] << endl << endl;
+	for (int i = 0; i <= k; i++)
+	{
+
+		temp = (int)arrA[i][0]; 
+		int HR_A_Suffix_Dot = HR_A_Suffix_Dot_judge((int)arrA[i][0]);
+		//返回值1则为要打印%和要保留一位小数的，返回值0，则精确到整数
+
+		if (HR_A_Suffix_Dot == 1)
+		{
+			cout << ArrHRName[temp] << ":" << fixed << setprecision(1) << arrA[i][1];
+			cout << "%";
+		}
+		else
+		{
+			cout << ArrHRName[temp] << ":" << fixed << setprecision(0) << arrA[i][1];
+		}
+		cout<< endl;
+	}
+	cout << endl;
+}
+//设置随机器，随机出圣遗物为三词条还是四词条（加权）
+int ArrHR_3_4_Boss_weight[2] = { 10,5 };
+int ArrHR_3_4_SecrectArea_weight[2] = { 12,3 };
+int HR_judge3or4(int Arr34[])
+{
+
+	int judge_deputy = HR_probability(15,Arr34, 2)+3;
+	//这里随机数函数会返回0或1；然后加三
+
+
+	return judge_deputy;//3或4
+}
+//设置判断器，强化圣遗物词条,第2个是次数
+void HR_upgrade(double arr[4][2],int k)
+{
+
+	for (int i = 1; i <= k; i++)
+	{
+		int HR_aim = HR_rand(4);//决定强化第几个词条
+		int HR_aimNum = HR_rand(4);//决定强化的数值是在总表数据中的第几个
+		int HR_aimName = (int)arr[HR_aim - 1][0];
+		arr[HR_aim - 1][1] = arr[HR_aim - 1][1] + HR_Ancillary_list[HR_aimName][HR_aim - 1];
+	}
+}
+ /*
+ 这是废案，因为副词条抽到一条要去掉一条并且还要去掉权重，原案无法实现
+ void  HR_A_product(double HR[4][2],int m,int n,int Main)
+ {
+	 int judge = HR_judge3or4(ArrHR_3_4_SecrectArea_weight);//决定产生几个词条，有返回值3和4
+	 vector<int>RandNamenum;
+	 //int i = 0;
+	 int q = 0;//中间判断用的值
+	 for (int j = 0;; j++)
+	 {
+		int i =(HR_probability(1100,ArrHR_Ancillary_Product_Weight,10)+1);//产生一个副词条序号
+		if (i == (Main+1))//main值是主词条对应于副词条表的下标
+		 {
+			 q = 1;
+		 }
+		 for (int k : RandNamenum)//遍历容器是否重复    ArrHRNameAFinal
+		 {
+			 if (k == i)
+			 {
+				 q = 1;
+				 break;
+			 }
+		 }
+		 if (q == 1)//是否重复
+		 {
+			 q = 0;
+			 continue;
+		 }
+		 
+		 RandNamenum.push_back(i);
+
+		 if (RandNamenum.size() == 4)//当有四个不重复的10以内副词条序号，退出
+			 break;
+	 }
+	//for (int h : RandNamenum)
+	// {
+	//	 cout << "  " <<h;
+	// }
+	 //cout << endl;
+	 for (int i = 0; i <= 3; i++)
+	 {
+		 HR[i][0] = RandNamenum[i] - 1;//赋给词条中文名下标
+
+		 int Nametemp = RandNamenum[i] - 1;
+	
+		 int n_num = HR_probability(24, ArrHRNameAncillary_BeginWeight, 4);//调用了概率器选档位，这里返回的是0~3
+		
+		 HR[i][1] = HR_Ancillary_list[Nametemp][n_num];//赋给词条初始值
+		
+	 };
+
+ }
+ */
+ void HR_M_product(double arr[4])//传入圣遗物主词条数组
+ {
+	 arr[1] = HR_rand(5);//arr[1]=HR_rand(5),位置随机
+	 //主词条随机
+	 switch ((int)arr[1])
+	 {
+	 case 1:
+		 arr[2] = 0;
+		 break;
+	 case 2:
+		 arr[2] = 0;
+		 break;
+	 case 3:
+		 arr[2] = HR_probability(ArrHRNameMain_weight_total[3-1],ArrHRNameMain_weight3,5);
+		 break;
+	 case 4:
+		 arr[2] = HR_probability(ArrHRNameMain_weight_total[4 - 1], ArrHRNameMain_weight4,11);
+		 break;
+	 case 5:
+		 arr[2] = HR_probability(ArrHRNameMain_weight_total[5 - 1], ArrHRNameMain_weight5,6);
+		 break;
+	 default:
+		 cout << "error!" << endl;
+		 break;
+	 }
+ }
+ void HR_A_product2(int Sunweight, int arr_weight[], int arrsize,int main,double HR_arr[4][2])
+ {
+	 int judge = HR_judge3or4(ArrHR_3_4_SecrectArea_weight)-1;
+	 int weight = Sunweight;
+	 if (main != 233)
+	 {
+		 weight-= arr_weight[main];
+		 arr_weight[main] = 0;
+	 }
+	 for (int j = 0; j <= judge; j++)
+	 {
+
+		 int sum1 = 0;
+		 int sum2 = 0;
+		 int ret = 233;
+		 int temp = HR_rand(weight);
+		 for (int i = 0; i < arrsize; i++)//
+		 {
+			 sum2 += arr_weight[i];
+			 if (temp <= sum2 && temp > sum1)
+			 {
+				 ret = i;
+				 HR_arr[j][0]=i;
+				 weight -= arr_weight[i];
+				 arr_weight[i] = 0;
+				 break;
+			 }
+			 if (i > 0)
+			 {
+				 sum1 += arr_weight[i-1];
+			 }
+		 }
+
+	 }
+	 for (int i = 0; i <= judge; i++)
+	 {
+		 int n_num = HR_probability(24, ArrHRNameAncillary_BeginWeight, 4);
+		 //调用了概率器选档位，这里返回的是0~3
+
+		 HR_arr[i][1] = HR_Ancillary_list[(int)HR_arr[i][0]][n_num];//赋给词条初始值
+
+	 };
+
+
+
+ }
+ void HR_A_product_4(double HR_arr[4][2],int arr_weight[10])//专门产生第四个词条
+ {
+	 int sumweight = 0;
+	 for (int i = 0; i < 10; i++)
+	 {
+		 sumweight += arr_weight[i];
+	 }
+	 //int temp = HR_rand(sumweight);
+	
+		 int sum1 = 0;
+		 int sum2 = 0;
+		 int ret = 233;
+		 int temp = HR_rand(sumweight);
+		 for (int i = 0; i < 10; i++)//
+		 {
+			 sum2 += arr_weight[i];
+			 if (temp <= sum2 && temp > sum1)
+			 {
+				 ret = i;
+				 HR_arr[3][0] = i;
+				/* sumweight -= arr_weight[i];
+				 arr_weight[i] = 0;*/
+				 break;
+			 }
+			 if (i > 0)
+			 {
+				 sum1 += arr_weight[i - 1];
+			 }
+		 }
+
+	 
+;
+		 int n_num = HR_probability(24, ArrHRNameAncillary_BeginWeight, 4);
+		 //调用了概率器选档位，这里返回的是0~3
+
+		 HR_arr[3][1] = HR_Ancillary_list[(int)HR_arr[3][0]][n_num];//赋给词条初始值
+
+
+
+ }
+int main()
+{
+	while (1)
+	{
+	
+		cout << "圣遗物强化模拟" << endl << endl;
+		//主词条区
+
+		double HR_main[5] = { 0,0,0,0,0};//套装信息，位置信息(假定时之沙)，主词条名，主词条值,等级
+		HR_M_product(HR_main);
+		int HR_m_a_temp = HR_MainName_Ancillary_judge(HR_main, ArrHRNameMA);
+
+		//cout << HR_m_a_temp << endl;           //HR_ancillary_change(HR_m_a_temp);
+
+
+		//副词条区
+		int ArrHR_Ancillary_Product_Weight[10] =
+		{ 75,75,100,150,100,150,100,150,100,100 };
+		double HR[4][2] =
+		{
+			{0,0},
+			{0,0},
+			{0,0},
+			{0,0}
+		};//第一位是词条名序号，第二位是数值
+		//HR_A_product(HR, 4, 2, HR_m_a_temp);
+		
+		HR_A_product2(1100, ArrHR_Ancillary_Product_Weight, 10, HR_m_a_temp, HR);
+		HR_Print(HR_main, HR, 4, 2);//打印圣遗物的所有词条
+		cout << endl;
+
+		//HR_upgrade(HR,5)
+	
+		int upgrade_n = 0;
+		if (HR[3][1] != 0)
+		{
+			upgrade_n = 5;
+		}
+		else
+		{
+			upgrade_n = 4;
+			HR_A_product_4(HR, ArrHR_Ancillary_Product_Weight);
+		}
+		HR_upgrade(HR, upgrade_n);
+
+		HR_Print(HR_main, HR, 4, 2);
+		system("pause");
+		system("cls");
+
+		
+	}
+	return 0;
+}
