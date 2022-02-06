@@ -8,7 +8,6 @@
 using namespace std;
 
 
-
 //圣遗物副词条中文名表,此表与HR_Ancillary_list一一对应，由其行标调用
 const string ArrHRName[10] =
 { 
@@ -152,7 +151,7 @@ int HR_probability(int Weight, int arr_weight[],int len)
 	int sum2 = 0;
 	int ret = 100;
 
-	for (int i = 0; i <=len; i++)//结果中必定避免了数组越界
+	for (int i = 0; i <=len; i++)//虽然结果中必定避免了数组越界，但感觉不够严谨
 	{
 		sum2 =sum2+ arr_weight[i];
 		//cout << "sum2=" << sum2 << endl;
@@ -462,7 +461,7 @@ int main()
 			upgrade_n = 4;
 			HR_A_product_4(HR, ArrHR_Ancillary_Product_Weight);
 		}
-		HR_upgrade(HR, upgrade_n);
+		HR_upgrade(HR, upgrade_n);//增加第二个参数，传入强化的次数较好，默认五次吧
 
 		HR_Print(HR_main, HR, 4, 2);
 		system("pause");
