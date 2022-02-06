@@ -426,7 +426,7 @@ int main()
 		cout << "圣遗物强化模拟" << endl << endl;
 		//主词条区
 
-		double HR_main[5] = { 0,0,0,0,0};//套装信息，位置信息(假定时之沙)，主词条名，主词条值,等级
+		double HR_main[5] = { 0,0,0,0,0};//套装信息，位置信息，主词条名，主词条值,等级（未完成）
 		HR_M_product(HR_main);
 		int HR_m_a_temp = HR_MainName_Ancillary_judge(HR_main, ArrHRNameMA);
 
